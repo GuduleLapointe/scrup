@@ -10,6 +10,7 @@ string version = "1.0";
 integer DEBUG = FALSE;
 
 string scrupURL = ""; // Change to your scrup.php URL
+integer scrupCheckInterval = 60;
 
 // Do not change below
 string registerRequestId;
@@ -78,13 +79,13 @@ registerScripts() {
     + "\nScrupServer " + version
     + "\n---\n" + llDumpList2String(scripts, "\n"),<1,1,1>, 1.0);
     registerScript(0);
-    llSetTimerEvent(60);
 }
 
 registerScript(integer i) {
     string script = llGetInventoryName(INVENTORY_SCRIPT, i);
     if(!script) {
         // debug("end list " + i);
+        llSetTimerEvent(scrupCheckInterval);
         return;
     }
     if (script == llGetScriptName()) jump break;
@@ -181,6 +182,7 @@ state serving {
             if(status ==200) {
                 list clients = llParseString2List(body, [ "," ], [] );
                 if(llGetListLength(clients) > 1) {
+                    llSetTimerEvent(0); // might be long, suspend other checks
                     integer i=0; do {
                         list client = llParseString2List(llList2String(clients, i), [ " " ], [] );
                         key clientKey = llList2Key(client, 0);
@@ -194,7 +196,8 @@ state serving {
                     } while (i++ < llGetListLength(clients)-1);
                     @endlist;
                     debug("End list");
-                    }
+                    llSetTimerEvent(scrupCheckInterval); // resume normal checks
+                }
             } else {
                 notify("could not register " + registerRequestScript + ", web server answered " + (string)status
                 // + " metadata " + llDumpList2String(metadata, ", ")
