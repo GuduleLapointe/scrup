@@ -29,7 +29,8 @@ function getObjectURI() {
     break;
 
     case 'script':
-    return $_POST['loginURI'] . SCRUP_SLUG . '/script/' . $_POST['scrip'];
+    if(isset($_POST['name']))
+    return $_POST['loginURI'] . SCRUP_SLUG . '/script/' . $_POST['name'];
     break;
 
     default:
@@ -74,11 +75,22 @@ function registerScript($uri, $name, $version) {
   } else {
     $status = version_compare($version, $found['version']);
     if($status < 0) scrupDie(403, "A newer version ${found['version']} already exists");
-    else if($status == 0) scrupDie(200, "Same version here, nothing to do");
-    else {
+    else if($status > 0) {
       if(! $scrupdb->exec("UPDATE scripts SET lastseen = CURRENT_TIMESTAMP, version='$version' WHERE uri = '$uri'"))
       scrupDie(500, "could not update script $uri");
     }
+
+    // Get out of date clients
+    // clients (uri, uuid, scriptname, version, pin, lastseen
+
+    $clients = $scrupdb->query("SELECT * FROM clients WHERE scriptname = '$name';");
+    while($client = $clients->fetchArray()) {
+      // TODO: split if list is too long
+      if(version_compare($client['version'], $version) < 0)
+      echo $client['uuid'] . ' ' . $client['pin'] . ',';
+    }
+    echo "ENDLIST";
+
     // debug('data ' . print_r($found, true));
   }
   return true;

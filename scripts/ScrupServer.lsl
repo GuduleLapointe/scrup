@@ -1,21 +1,25 @@
+string version = "1.0";
 /**
  * ScrupServer
- * Version: 1.0
  *
  * Place this script in a prim, alongside scripts to serve updates for.
  * - Updated scripts have to be set as non running to avoid mismatches.
  * - Updated scripts must be named with their version number at the end
  */
 
-integer DEBUG = TRUE;
+integer DEBUG = FALSE;
+
+string scrupURL = ""; // Change to your scrup.php URL
 
 // Do not change below
-string scrupURL = "http://dev.w4os.org/updater/scrup.php";
 string registerRequestId;
+string registerRequestScript;
 key clientKey;
 string script;
 integer start_param;
 integer pin;
+list scripts;
+list versions;
 
 debug(string message) {
     if(DEBUG) llOwnerSay("/me (debug): " + message);
@@ -23,25 +27,6 @@ debug(string message) {
 
 notify(string message) {
     llOwnerSay(message);
-}
-
-sendUpdates(string scriptname, string scriptversion) {
-    debug("requesting clients on " + scrupURL);
-    list params = [
-    "loginURI=" + osGetGridLoginURI(),
-    "action=get",
-    "type=clients",
-    "scripname=" + scriptname,
-    "version=" + scriptversion
-    ];
-    registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
-    HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
-    llDumpList2String(params, "&"));
-}
-
-sendUpdate(key client, string script, integer pin) {
-    return;
-    llRemoteLoadScriptPin(clientKey, script, pin, TRUE, start_param);
 }
 
 startServer() {
@@ -54,14 +39,12 @@ startServer() {
     registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     llDumpList2String(params, "&"));
-
-    // llRequestURL();
 }
 
 list parseSoftwareInfo(string name)
 {
     string part;
-    list softParts=[];
+    // list softParts=[];
     list parts=llParseString2List(name, [" "], "");
     integer i; for (i=1;i<llGetListLength(parts);i++)
     {
@@ -73,7 +56,7 @@ list parseSoftwareInfo(string name)
     return name;
 
     @break;
-    list nameList = llList2List(parts, 0, i - 1);
+    // list nameList = llList2List(parts, 0, i - 1);
     return [
     llDumpList2String(llList2List(parts, 0, i - 1), " "),
     part,
@@ -82,32 +65,46 @@ list parseSoftwareInfo(string name)
 }
 
 registerScripts() {
+    scripts = [];
+    integer i = 0; do {
+        string script = llGetInventoryName(INVENTORY_SCRIPT, i);
+        string name = getScriptName(script);
+        string scriptVersion = getScriptVersion(script);
+        if(scriptVersion != "") {
+            scripts += script;
+        }
+    } while(i++ < llGetInventoryNumber(INVENTORY_SCRIPT) -1 );
+    llSetText(llGetObjectName()
+    + "\nScrupServer " + version
+    + "\n---\n" + llDumpList2String(scripts, "\n"),<1,1,1>, 1.0);
     registerScript(0);
+    llSetTimerEvent(60);
 }
 
 registerScript(integer i) {
     string script = llGetInventoryName(INVENTORY_SCRIPT, i);
     if(!script) {
-        debug("end list " + i);
+        // debug("end list " + i);
         return;
     }
     if (script == llGetScriptName()) jump break;
 
-    string name = getScriptName(script);
-    string version = getScriptVersion(script);
-    if(version == "") {
+    string scriptname = getScriptName(script);
+    string scriptVersion = getScriptVersion(script);
+    if(scriptVersion == "") {
         notify("missing version number for " + script);
         jump break;
     }
-    debug("register " + name + " (" + version + ")");
+    debug("register " + scriptname + " (" + scriptVersion + ")");
 
     list params = [
     "loginURI=" + osGetGridLoginURI(),
     "action=register",
     "type=script",
-    "name=" + name,
-    "version=" + version
+    "name=" + scriptname,
+    "version=" + scriptVersion
     ];
+    registerRequestScript = script;
     registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     llDumpList2String(params, "&"));
@@ -131,8 +128,8 @@ default
 {
     state_entry()
     {
-        debug("starting " + llGetKey());
         startServer();
+        notify(llGetScriptName() + " started");
     }
 
     on_rez(integer start_param)
@@ -146,8 +143,7 @@ default
             if(status ==200) {
                 state serving;
             } else {
-                debug("could not register, got status " + (string)status
-                // + " metadata " + llDumpList2String(metadata, ", ")
+                notify("could not register, web server andswered " + (string)status
                 + "\n" + body
                 );
             }
@@ -174,18 +170,33 @@ state serving {
         }
     }
 
+    timer()
+    {
+        registerScripts();
+    }
+
     http_response(key request_id, integer status, list metadata, string body)
     {
         if(request_id == registerRequestId) {
             if(status ==200) {
-                debug("script registered " + (string)status
-                // + " metadata " + llDumpList2String(metadata, ", ")
-                + "\n TODO: register output should include keys of clients to update (lower version),"
-                + "\n and this script must serve them from here"
-                + "\n" + body
-                );
+                list clients = llParseString2List(body, [ "," ], [] );
+                if(llGetListLength(clients) > 1) {
+                    integer i=0; do {
+                        list client = llParseString2List(llList2String(clients, i), [ " " ], [] );
+                        key clientKey = llList2Key(client, 0);
+                        integer pin = llList2Integer(client, 1);
+                        if(clientKey == "ENDLIST") jump endlist;
+                        if(llKey2Name(clientKey) != "") {
+                            // If no name, the object has been deleted or is in another grid
+                            debug("updating " + registerRequestScript + " on " + llKey2Name(clientKey));
+                            llRemoteLoadScriptPin(clientKey, registerRequestScript, pin, TRUE, pin);
+                        }
+                    } while (i++ < llGetListLength(clients)-1);
+                    @endlist;
+                    debug("End list");
+                    }
             } else {
-                debug("could not register, got status " + (string)status
+                notify("could not register " + registerRequestScript + ", web server answered " + (string)status
                 // + " metadata " + llDumpList2String(metadata, ", ")
                 + "\n" + body
                 );

@@ -16,6 +16,8 @@
  * License URI:       https://www.gnu.org/licenses/agpl-3.0.txt
  */
 
+namespace Scrup;
+
 if(!$_SERVER['HTTP_X_SECONDLIFE_SHARD']) {
   header('HTTP/1.0 400 Bad Request', true, 400);
   die();

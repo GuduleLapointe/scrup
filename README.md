@@ -11,6 +11,4 @@ An update ecosystem to allow LSL (or OpenSimulator) scripts to self-update.
 
 ## Status
 
-This is a work in progress.
-
-As for now, those three parts communicate pretty well together, but the updates are not yet sent (yeah, I know, the most interesting part is yet to come).
+This is a work in progress. Updates are functional, but there is no specific verification (allowed grids, owners, creators), so it should probably not be used at a wide scale.
