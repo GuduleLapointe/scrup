@@ -31,6 +31,10 @@ notify(string message) {
 }
 
 startServer() {
+    if(scrupURL =="") {
+        notify("Server not started. Update scrupURL in your script with the URL of your scrup.php web URL");
+        return;
+    }
     debug("requesting status on " + scrupURL);
     list params = [
     "loginURI=" + osGetGridLoginURI(),
@@ -40,6 +44,7 @@ startServer() {
     registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     llDumpList2String(params, "&"));
+    notify(llGetScriptName() + " started");
 }
 
 list parseSoftwareInfo(string name)
@@ -130,7 +135,6 @@ default
     state_entry()
     {
         startServer();
-        notify(llGetScriptName() + " started");
     }
 
     on_rez(integer start_param)
