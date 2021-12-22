@@ -15,6 +15,10 @@ function scrupDie($status = 200, $message = "") {
   die($message);
 }
 
+/**
+ * Unique identifier for each object requesting registration (server, script, client)
+ * @return [type] http://login.uri:port/[Region/]type/id-or-name
+ */
 function getObjectURI() {
   if(empty($_POST['loginURI']) || empty($_POST['type']) || empty($_POST['action']) || empty(getenv('HTTP_X_SECONDLIFE_REGION')) || empty(getenv('HTTP_X_SECONDLIFE_OBJECT_KEY')) || empty(getenv('HTTP_X_SECONDLIFE_OBJECT_KEY'))) scrupDie(400, 'Bad Request');
   $region = trim(explode('(', getenv('HTTP_X_SECONDLIFE_REGION'))[0]);
@@ -39,6 +43,11 @@ function getObjectURI() {
   if(empty($region)) return false;
 }
 
+/**
+ * Process server registration request
+ * @param  string $uri  object identifier set by getObjectURI()
+ * @return boolean      true if OK, die with HTTP response code on errors
+ */
 function registerServer($uri) {
   global $scrupdb;
 
@@ -59,6 +68,12 @@ function registerServer($uri) {
   return true;
 }
 
+/**
+ * Process script registration request sent by the server
+ * Output list if client UUIDs needing an update
+ * @param  string $uri  object identifier set by getObjectURI()
+ * @return boolean      true if OK, die with HTTP response code on errors
+ */
 function registerScript($uri, $name, $version) {
   global $scrupdb;
 
@@ -96,10 +111,19 @@ function registerScript($uri, $name, $version) {
   return true;
 }
 
+/**
+ * Process client (script) registration. Store client key and pin to deliver
+ * when server request updates.
+ * The output is ignored by the client script, to keep the code to include as
+ * small as possible.
+ * @param  string $uri  object  identifier set by getObjectURI()
+ * @param  [type] $version      current version installed on client
+ * @param  [type] $pin          pin (update authorisation code) set by the client
+ * @return boolean      true if OK, die with HTTP response code on errors
+ */
 function registerclient($uri, $version, $pin) {
   global $scrupdb;
 
-  // $uri = getObjectURI();
   if(empty($uri)) return false;
   if(empty($pin)) scrupDie('400', "No pin, no service");
   if(empty($version)) scrupDie('400', "No version, no service");
@@ -123,11 +147,3 @@ function registerclient($uri, $version, $pin) {
   }
   return true;
 }
-
-
-// "loginURI=" + osGetGridLoginURI(),
-// "action=register",
-// "type=client",
-// "name=" + llGetScriptName(), // or the name of another script in this prim
-// "pin=" + scrupPin,
-// "version=" + version

@@ -1,4 +1,4 @@
-string version = "1.0";
+string version = "1.0.1";
 /**
  * ScrupServer
  *
@@ -44,7 +44,6 @@ startServer() {
     registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     llDumpList2String(params, "&"));
-    notify(llGetScriptName() + " started");
 }
 
 list parseSoftwareInfo(string name)
@@ -159,7 +158,7 @@ default
 state serving {
     state_entry()
     {
-        debug("serving");
+        notify(llGetScriptName() + " started");
         registerScripts();
     }
 

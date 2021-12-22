@@ -2,7 +2,7 @@
 /**
  * Scrup - LSL scripts auto-update
  *
- * Version: 1.0
+ * Version: 1.0.1
  * Author: Speculoos World
  * GitHub URI: https://github.com/GuduleLapointe/scrup
  * Requires PHP: 5.5
@@ -19,6 +19,7 @@
 namespace Scrup;
 
 if(!$_SERVER['HTTP_X_SECONDLIFE_SHARD']) {
+  // We only want to be called by in-world scripts
   header('HTTP/1.0 400 Bad Request', true, 400);
   die();
 };
@@ -62,14 +63,3 @@ switch("$action-$type") {
   default:
   scrupDie(400, "unknown action $action-$type");
 }
-
-// $remote = getenv('REMOTE_ADDR');
-// echo "remote: " . getenv('REMOTE_ADDR');
-// echo "\nOBJECT_NAME: " . getenv('HTTP_X_SECONDLIFE_OBJECT_NAME');
-// echo "\nOBJECT_KEY: " . getenv('HTTP_X_SECONDLIFE_OBJECT_KEY');
-// echo "\nREGION: " . getenv('HTTP_X_SECONDLIFE_REGION');
-// echo "\nOWNER_KEY: " . getenv('HTTP_X_SECONDLIFE_OWNER_KEY');
-
-// echo "\nSERVER: " . print_r($_SERVER, true) . '\n';
-// echo "\nPOST: " . print_r($_POST, true) . '\n';
-// echo "\nOK";
