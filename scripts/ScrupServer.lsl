@@ -1,4 +1,4 @@
-string version = "1.0.2";
+string version = "1.0.3";
 /**
  * ScrupServer
  *
@@ -70,6 +70,7 @@ list parseSoftwareInfo(string name)
 }
 
 registerScripts() {
+    debug("Get scripts list");
     scripts = [];
     integer i = 0; do {
         string script = llGetInventoryName(INVENTORY_SCRIPT, i);
@@ -88,19 +89,24 @@ registerScripts() {
 registerScript(integer i) {
     string script = llGetInventoryName(INVENTORY_SCRIPT, i);
     if(!script) {
-        // debug("end list " + i);
+        debug("end list " + i);
         llSetTimerEvent(scrupCheckInterval);
         return;
     }
-    if (script == llGetScriptName()) jump break;
+    if (script == llGetScriptName()) {
+        debug("that's me, not processing");
+        registerScript(i+1);
+        return;
+    }
 
     string scriptname = getScriptName(script);
     string scriptVersion = getScriptVersion(script);
     if(scriptVersion == "") {
         notify("missing version number for " + script);
-        jump break;
+        registerScript(i+1);
+        return;
     }
-    debug("register " + scriptname + " (" + scriptVersion + ")");
+    debug("register script " + scriptname + " (" + scriptVersion + ")");
 
     list params = [
     "loginURI=" + osGetGridLoginURI(),
@@ -113,10 +119,6 @@ registerScript(integer i) {
     registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     llDumpList2String(params, "&"));
-
-
-    @break;
-    registerScript(i+1);
 }
 
 string getScriptName(string name)
@@ -158,7 +160,7 @@ default
 state serving {
     state_entry()
     {
-        notify(llGetScriptName() + " started");
+        notify(llGetScriptName() + " starting");
         registerScripts();
     }
 
@@ -193,14 +195,13 @@ state serving {
                         if(clientKey == "ENDLIST") jump endlist;
                         if(llKey2Name(clientKey) != "") {
                             // If no name, the object has been deleted or is in another grid
-                            debug("updating " + registerRequestScript + " on " + llKey2Name(clientKey));
+                            debug("sending update for " + registerRequestScript + " to " + llKey2Name(clientKey));
                             llRemoteLoadScriptPin(clientKey, registerRequestScript, pin, TRUE, pin);
                         }
                     } while (i++ < llGetListLength(clients)-1);
                     @endlist;
-                    debug("End list");
-                    llSetTimerEvent(scrupCheckInterval); // resume normal checks
                 }
+                registerScript(llListFindList(scripts, registerRequestScript) + 1);
             } else {
                 notify("could not register " + registerRequestScript + ", web server answered " + (string)status
                 // + " metadata " + llDumpList2String(metadata, ", ")

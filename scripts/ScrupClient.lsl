@@ -38,7 +38,7 @@ debug(string message) {
 }
 
 scrup() {
-    string scrupVersion = "1.0.2";
+    string scrupVersion = "1.0.3";
     if(!scrupAllowUpdates)  {
         llSetRemoteScriptAccessPin(0);
         return;
