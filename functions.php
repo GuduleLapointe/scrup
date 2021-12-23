@@ -121,7 +121,7 @@ function registerScript($uri, $name, $version) {
  * @param  [type] $pin          pin (update authorisation code) set by the client
  * @return boolean      true if OK, die with HTTP response code on errors
  */
-function registerclient($uri, $version, $pin) {
+function registerClient($uri, $link, $version, $pin) {
   global $scrupdb;
 
   if(empty($uri)) return false;

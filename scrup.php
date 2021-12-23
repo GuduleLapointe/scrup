@@ -56,7 +56,7 @@ switch("$action-$type") {
   $clientURI = getObjectURI();
   debug("client $clientURI");
   debug(print_r($_POST));
-  if(!registerclient($clientURI, $_POST['linkkey'], $_POST['version'], $_POST['pin'])) {
+  if(!registerClient($clientURI, $_POST['linkkey'], $_POST['version'], $_POST['pin'])) {
     scrupDie(400, "Could not register client $clientURI");
   }
   break;
