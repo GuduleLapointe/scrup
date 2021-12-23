@@ -17,6 +17,11 @@
  * - rename the script with the version at the end (separated by a space)
  * - put a copy of the full script, non running, in the update server object
  *   (alongide ScrupServer script)
+ *
+ * If you use multiple states, depending on the way your script work, you
+ * might or not want to disable updates when entering other states, as an update
+ * would force a restart and go back to default state. In this cases, updates
+ * will resume when coming back to default state.
  */
 
 // Change only in your master script
@@ -33,7 +38,7 @@ debug(string message) {
 }
 
 scrup() {
-    string scrupVersion = "1.0";
+    string scrupVersion = "1.0.2";
     if(!scrupAllowUpdates)  {
         llSetRemoteScriptAccessPin(0);
         return;
@@ -72,7 +77,7 @@ scrup() {
             string found = llGetInventoryName(INVENTORY_SCRIPT, i);
             if(found != llGetScriptName()) {
                 // debug("what shall we do with " + found);
-                integer match = llSubStringIndex(found, scriptname + ' ');
+                integer match = llSubStringIndex(found, scriptname + " ");
                 if(match == 0) {
                     llOwnerSay("deleting duplicate '" + found + "'");
                     llRemoveInventory(found);
@@ -82,8 +87,8 @@ scrup() {
     }
 
     list params = [ "loginURI=" + osGetGridLoginURI(), "action=register",
-    "type=client", "scriptname=" + scriptname, "pin=" + scrupPin,
-    "version=" + version, "scrupVersion=" + scrupVersion ];
+    "type=client", "linkkey=" + llGetKey(), "scriptname=" + scriptname,
+    "pin=" + scrupPin, "version=" + version, "scrupVersion=" + scrupVersion ];
     scrupRequestID = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     llDumpList2String(params, "&"));
@@ -96,14 +101,15 @@ default
     {
         scrup();
 
-        // llSetText only for debug purpose, you don't need it in your script
-        // (and you really shouldn't display llGetStartParameter() publicly)
+        // DISABLE NEXT COMMAND IN PUBLIC ENVIRONMENT llSetText is used here
+        // only for debug purposes, you don't need it in your script (and if you
+        // want it, NEVER display llGetStartParameter() value publicly)
         llSetText(llGetObjectName() + "\nScrupClient" + "\nallow updates: " + scrupAllowUpdates + "\nstart parameter " + llGetStartParameter() + "\n---\n" + llGetScriptName(),<1,1,1>, 1.0);
     }
 
     on_rez(integer start_param)
     {
-        scrup(); // or llResetScript()
+        scrup(); // not needed if you llResetScript() too.
     }
 
     changed(integer change)
@@ -113,5 +119,14 @@ default
             // script would delete the updated version sent by Scrup server.
             // If you need to reset script, use llSleep() or llSetTimerEvent().
         }
+    }
+}
+
+state exampleWithoutUpdates
+{
+    state_entry()
+    {
+        // Disable authorisation to avoid updates occuring in this state
+        llSetRemoteScriptAccessPin(0);
     }
 }

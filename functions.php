@@ -25,12 +25,12 @@ function getObjectURI() {
 
     case 'client':
     $scriptname = preg_replace('/ +[0-9\._-]*$/', '', $_POST['scriptname']);
-    return $_POST['loginURI'] . SCRUP_SLUG . '/client/' . getenv('HTTP_X_SECONDLIFE_OBJECT_KEY') . '/' . $scriptname;
+    return $_POST['loginURI'] . $region . '/client/' . $_POST['linkkey'] . '/' . $scriptname;
     break;
 
     case 'script':
     if(isset($_POST['name']))
-    return $_POST['loginURI'] . SCRUP_SLUG . '/script/' . $_POST['name'];
+    return $_POST['loginURI'] . $region . '/script/' . $_POST['name'];
     break;
 
     default:
@@ -96,11 +96,12 @@ function registerScript($uri, $name, $version) {
   return true;
 }
 
-function registerclient($uri, $version, $pin) {
+function registerclient($uri, $link, $version, $pin) {
   global $scrupdb;
 
   // $uri = getObjectURI();
   if(empty($uri)) return false;
+  if(empty($link)) scrupDie('400', "The missing link key");
   if(empty($pin)) scrupDie('400', "No pin, no service");
   if(empty($version)) scrupDie('400', "No version, no service");
   if(!$uri) return false;
@@ -109,13 +110,9 @@ function registerclient($uri, $version, $pin) {
   // debug('found ' . print_r($found, true));
 
   if(!$found) {
-    $uuid = basename(dirname($uri));
     $scriptname = basename($uri);
-    debug("INSERT INTO clients (uri, uuid, scriptname, version, pin, lastseen)
-    values('$uri', '$uuid', '$scriptname', '$version', $pin, CURRENT_TIMESTAMP);");
-
     if(! $scrupdb->exec("INSERT INTO clients (uri, uuid, scriptname, version, pin, lastseen)
-    values('$uri', '$uuid', '$scriptname', '$version', $pin, CURRENT_TIMESTAMP);"))
+    values('$uri', '$link', '$scriptname', '$version', $pin, CURRENT_TIMESTAMP);"))
     scrupDie(500, "could not insert client $uri");
   } else {
     if(! $scrupdb->exec("UPDATE clients SET lastseen = CURRENT_TIMESTAMP, version='$version' WHERE uri = '$uri'"))

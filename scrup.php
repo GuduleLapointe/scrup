@@ -54,7 +54,8 @@ switch("$action-$type") {
   case 'register-client':
   $clientURI = getObjectURI();
   debug("client $clientURI");
-  if(!registerclient($clientURI, $_POST['version'], $_POST['pin'])) {
+  debug(print_r($_POST));
+  if(!registerclient($clientURI, $_POST['linkkey'], $_POST['version'], $_POST['pin'])) {
     scrupDie(400, "Could not register client $clientURI");
   }
   break;

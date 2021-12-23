@@ -1,4 +1,4 @@
-string version = "1.0";
+string version = "1.0.2";
 /**
  * ScrupServer
  *
@@ -31,6 +31,10 @@ notify(string message) {
 }
 
 startServer() {
+    if(scrupURL =="") {
+        notify("Server not started. Update scrupURL in your script with the URL of your scrup.php web URL");
+        return;
+    }
     debug("requesting status on " + scrupURL);
     list params = [
     "loginURI=" + osGetGridLoginURI(),
@@ -130,7 +134,6 @@ default
     state_entry()
     {
         startServer();
-        notify(llGetScriptName() + " started");
     }
 
     on_rez(integer start_param)
@@ -155,7 +158,7 @@ default
 state serving {
     state_entry()
     {
-        debug("serving");
+        notify(llGetScriptName() + " started");
         registerScripts();
     }
 
