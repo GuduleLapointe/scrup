@@ -22,6 +22,8 @@ The only OSSL function used in scripts is osGetGridLoginURI(), in , which is use
 
 ## Roadmap
 
+- Let ScrupServer script update itself too
+- Let two ScrupServers exchange their latest versions
 - If there are no updater in the same region, send a message notification to the owner
 - Or better: send an updater box to the owner as a workaround to region limitations (wear to update)
 - Allow bundles (all scripts in an object + other inventory items), mix with updater box concept
