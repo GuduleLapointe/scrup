@@ -1,4 +1,4 @@
-string version = "1.0.4";
+string version = "1.0.5";
 /**
  * ScrupServer
  *
@@ -36,7 +36,6 @@ startServer() {
         notify("Server not started. Update scrupURL in your script with the URL of your scrup.php web URL");
         return;
     }
-    debug("requesting status on " + scrupURL);
     list params = [
     "loginURI=" + osGetGridLoginURI(),
     "action=register",
@@ -45,6 +44,7 @@ startServer() {
     registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     llDumpList2String(params, "&"));
+    debug("requested server registration on " + scrupURL + "(" + (string) registerRequestId + ")");
 }
 
 list parseSoftwareInfo(string name)
@@ -107,7 +107,6 @@ registerScript(integer i) {
         registerScript(i+1);
         return;
     }
-    debug("register script " + scriptname + " (" + scriptVersion + ")");
 
     list params = [
     "loginURI=" + osGetGridLoginURI(),
@@ -120,6 +119,7 @@ registerScript(integer i) {
     registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     llDumpList2String(params, "&"));
+    debug("requested script " + scriptname + " (" + scriptVersion + ") status");
 }
 
 string getScriptName(string name)
@@ -209,6 +209,7 @@ state serving {
     http_response(key request_id, integer status, list metadata, string body)
     {
         if(request_id == registerRequestId) {
+            debug("response for (" + llListFindList(scripts, registerRequestScript) + ")" + registerRequestScript + ": " + (integer)status + "\n" + body);
             if(status ==200) {
                 list clients = llParseString2List(body, [ "," ], [] );
                 if(llGetListLength(clients) > 1) {
@@ -226,6 +227,7 @@ state serving {
                     } while (i++ < llGetListLength(clients)-1);
                     @endlist;
                 }
+                llSleep(1); // avoid asking too much too fast
                 registerScript(llListFindList(scripts, registerRequestScript) + 1);
             } else {
                 notify("could not register " + registerRequestScript + ", web server answered " + (string)status
