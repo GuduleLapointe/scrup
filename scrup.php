@@ -2,7 +2,7 @@
 /**
  * Scrup - LSL scripts auto-update
  *
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Speculoos World
  * GitHub URI: https://github.com/GuduleLapointe/scrup
  * Requires PHP: 5.5
