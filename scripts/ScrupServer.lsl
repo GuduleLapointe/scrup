@@ -1,4 +1,4 @@
-string version = "1.0.3";
+string version = "1.0.4";
 /**
  * ScrupServer
  *
@@ -21,6 +21,7 @@ integer start_param;
 integer pin;
 list scripts;
 list versions;
+float touchStarted;
 
 debug(string message) {
     if(DEBUG) llOwnerSay("/me (debug): " + message);
@@ -143,6 +144,16 @@ default
         llResetScript();
     }
 
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER
+        || change & CHANGED_REGION
+        || change & CHANGED_INVENTORY
+        ) {
+            startServer();
+        }
+    }
+
     http_response(key request_id, integer status, list metadata, string body)
     {
         if(request_id == registerRequestId) {
@@ -171,9 +182,23 @@ state serving {
 
     changed(integer change)
     {
-        if(change & CHANGED_INVENTORY) {
+        if(change & CHANGED_OWNER
+        || change & CHANGED_REGION
+        || change & CHANGED_INVENTORY
+        ) {
             registerScripts();
         }
+    }
+
+    touch_start(integer index)
+    {
+        touchStarted=llGetTime();
+    }
+
+    touch_end(integer num)
+    {
+        if(llDetectedKey(0)==llGetOwner() && llGetTime() - touchStarted > 2)
+        llResetScript();
     }
 
     timer()
