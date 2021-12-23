@@ -19,3 +19,10 @@ This is a work in progress and more like a proof of concept. Updates are functio
 ## Second Life
 
 The only OSSL function used in scripts is osGetGridLoginURI(), in , which is useless in SL. So to make the script work in SL, replace the function by a fixed value, like secondlife.com.
+
+## Roadmap
+
+- If there are no updater in the same region, send a message notification to the owner
+- Or better: send an updater box to the owner as a workaround to region limitations (wear to update)
+- Allow bundles (all scripts in an object + other inventory items), mix with updater box concept
+- Find a f_*_ way to send updates to other regions (let's forget other grids for now)
