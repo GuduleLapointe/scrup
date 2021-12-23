@@ -1,5 +1,9 @@
 <?php if(!SCRUP_SLUG) die("I won't be called immediately");
 
+/**
+ * SQLite3 database, used for cache only and filled automatically.
+ * Can be deleted anytime.
+ */
 class ScrupDB extends SQLite3
 {
   function __construct()

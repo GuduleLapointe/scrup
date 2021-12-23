@@ -1,5 +1,14 @@
 <?php
+/**
+ * config.php
+ *
+ * Copy config.php.example as config.php to set custom settings.
+ */
 
+/**
+ * Will be used to limit usage. Not yet implemented.
+ * @var array
+ */
 $restrictToGrids = [];
 $restrictToScripts = [];
 $restrictToOwners = [];
