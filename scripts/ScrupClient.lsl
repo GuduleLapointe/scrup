@@ -47,9 +47,16 @@ scrup(integer enable) {
     // loginURI = osGetGridLoginURI();  // If in OpenSimulator
     // loginURI = "secondlife://";      // If in Second Life
 
-    if(loginURI == "" || scrupURL == "" |! scrupAllowUpdates |! enable)  { llSetRemoteScriptAccessPin(0); return; }
+    if(loginURI == "" || scrupURL == "" |! scrupAllowUpdates |! enable)  {
+        if(loginURI=="") llOwnerSay("loginURI not configured");
+        else if(scrupURL=="") llOwnerSay("scrupURL not configured");
+        else if(!scrupAllowUpdates) debug("scrupAllowUpdates is set to false");
+        else debug("scup suspend");
+        llSetRemoteScriptAccessPin(0);
+        return;
+    }
 
-    string scrupLibrary = "1.1.0";
+    string scrupLibrary = "1.1.1";
     version = ""; list parts=llParseString2List(llGetScriptName(), [" "], []);
     integer i = 1; do {
         string part = llList2String(parts, i);

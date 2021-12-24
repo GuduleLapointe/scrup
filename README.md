@@ -22,7 +22,8 @@ An update ecosystem to allow OpenSimulator scripts to self-update. It should als
 This is a work in progress and more like a proof of concept. Updates are functional, but...
 
 - only if the server and the object are in the same region (you can wear the object and TP to the region hosting the server, though, and even wear the server and visit the regions where objects need update)
-- there is no specific verification (allowed grids, owners, creators), so it should probably not be used at a wide scale.
+- only one client can be present in a prim (several can if each one is in a different prim of the same object, though)
+- there are no verifications (allowed grids, owners, creators), so it should probably not be used at a wide scale. Yet.
 
 ## Second Life
 
