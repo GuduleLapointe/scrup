@@ -139,7 +139,7 @@ function registerClient($uri, $link, $version, $pin) {
     values('$uri', '$link', '$scriptname', '$version', $pin, CURRENT_TIMESTAMP);"))
     scrupDie(500, "could not insert client $uri");
   } else {
-    if(! $scrupdb->exec("UPDATE clients SET lastseen = CURRENT_TIMESTAMP, version='$version' WHERE uri = '$uri'"))
+    if(! $scrupdb->exec("UPDATE clients SET lastseen = CURRENT_TIMESTAMP, version='$version', pin='$pin' WHERE uri = '$uri'"))
     scrupDie(500, "could not update client $uri");
   }
   return true;
