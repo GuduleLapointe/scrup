@@ -29,7 +29,8 @@ function getObjectURI() {
 
     case 'client':
     $scriptname = preg_replace('/ +[0-9\._-]*$/', '', $_POST['scriptname']);
-    return $_POST['loginURI'] . $region . '/client/' . $_POST['linkkey'] . '/' . $scriptname;
+    if(isset($_POST['linkkey'])) $link = $_POST['linkkey']; else $link = getenv('HTTP_X_SECONDLIFE_OBJECT_KEY');
+    return $_POST['loginURI'] . $region . '/client/' . $link . '/' . $scriptname;
     break;
 
     case 'script':
@@ -125,7 +126,10 @@ function registerClient($uri, $link, $version, $pin) {
   global $scrupdb;
 
   if(empty($uri)) return false;
-  if(empty($link)) scrupDie('400', "The missing link key");
+  if(empty($link)) {
+    if(isset($_POST['scrupVersion']) && version_compare($_POST['scrupVersion'], "1.1.0") < 0) $link = getenv('HTTP_X_SECONDLIFE_OBJECT_KEY');
+    else scrupDie('400', "The missing link key ($version)");
+  }
   if(empty($pin)) scrupDie('400', "No pin, no service");
   if(empty($version)) scrupDie('400', "No version, no service");
   if(!$uri) return false;
