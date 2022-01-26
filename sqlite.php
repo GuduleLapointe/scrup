@@ -41,8 +41,9 @@ class ScrupDB extends SQLite3
   }
 
   private function addTable($table, $sql) {
-    $result = $this->query("SELECT name FROM sqlite_master WHERE type='table' AND name='$table';")->fetchArray();
-    if($result) return;
+    $result = $this->query("SELECT name FROM sqlite_master WHERE type='table' AND name='$table';");
+    if($result) $row = $result->fetchArray();
+    if($row) return;
 
     $result = $this->exec($sql);
     if($result) {
