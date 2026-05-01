@@ -1,4 +1,4 @@
-string version = "1.1.0";
+string version = "1.1.1";
 /**
  * ScrupServer
  *
@@ -22,6 +22,8 @@ integer DEBUG = FALSE;
 
 string scrupURL = ""; // Change to your scrup.php URL
 integer scrupCheckInterval = 300; // In seconds
+
+integer setText = TRUE;
 
 // Do not change below
 string registerRequestId;
@@ -99,9 +101,11 @@ registerScripts() {
             scripts += script;
         }
     } while(i++ < llGetInventoryNumber(INVENTORY_SCRIPT) -1 );
-    llSetText(llGetObjectName()
-    + "\nScrupServer " + version
-    + "\n---\n" + llDumpList2String(scripts, "\n"),<1,1,1>, 1.0);
+    if(setText) {
+        llSetText(llGetObjectName()
+        + "\nScrupServer " + version
+        + "\n---\n" + llDumpList2String(scripts, "\n"),<1,1,1>, 1.0);
+    }
     registerScript(0);
 }
 
@@ -154,8 +158,11 @@ default
 {
     state_entry()
     {
+    	if(setText) {
+        	llSetText("", <1,1,1>, 1.0);
+        }
         // Uncomment the loginURI for your platform, leave other one commented
-        // loginURI = osGetGridLoginURI();  // If in OpenSimulator
+        loginURI = osGetGridLoginURI();  // If in OpenSimulator
         // loginURI = "secondlife://";      // If in Second Life
 
         startServer();
@@ -182,7 +189,7 @@ default
             if(status ==200) {
                 state serving;
             } else {
-                notify("could not register, web server andswered " + (string)status
+                notify("could not register on " + scrupURL + " server status " + (string)status
                 + "\n" + body
                 );
             }

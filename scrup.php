@@ -18,49 +18,75 @@
 
 namespace Scrup;
 
-if(!$_SERVER['HTTP_X_SECONDLIFE_SHARD']) {
-  // We only want to be called by in-world scripts
-  header('HTTP/1.0 400 Bad Request', true, 400);
-  die();
-};
+if (file_exists("config.php")) {
+	include "config.php";
+}
 
-define('SCRUP_SLUG', 'scrup');
-define('SCRUP_TMP', ini_get('upload_tmp_dir') ? ini_get('upload_tmp_dir') : sys_get_temp_dir());
-define('SCRUP_LOG', SCRUP_TMP . '/' . SCRUP_SLUG  . '.log');
-define('SCRUP_DBFILE', SCRUP_TMP . '/' . SCRUP_SLUG  . '.db');
+define("SCRUP_SLUG", "scrup");
+define(
+	"SCRUP_TMP",
+	(ini_get("upload_tmp_dir") ?: sys_get_temp_dir()) . "/" . __NAMESPACE__,
+);
+if (!file_exists(SCRUP_TMP)) {
+	mkdir(SCRUP_TMP, 0777, true);
+}
+error_log("SCRUP_TMP: " . SCRUP_TMP);
+
+define("SCRUP_LOG", SCRUP_TMP . "/" . SCRUP_SLUG . ".log");
+
 // define('SCRUP_DBFILE', SCRUP_SLUG  . '.db');
 
-if(file_exists('config.php')) include('config.php');
-require('functions.php');
-require('sqlite.php');
+require "functions.php";
+require "sqlite.php";
 
-$action = $_POST['action'];
-$type =  $_POST['type'];
-switch("$action-$type") {
-  case 'register-server':
-  $serverURI = getObjectURI();
-  if(!registerServer($serverURI)) {
-    scrupDie(403, "Could not register server $serverURI");
-  }
-  break;
+$action = $_REQUEST["action"] ?? "";
+$type = $_REQUEST["type"] ?? "";
+switch ("$action-$type") {
+	case "register-server":
+		$serverURI = getObjectURI();
+		if (!registerServer($serverURI)) {
+			scrupDie(403, "Could not register server $serverURI");
+		}
+		break;
 
-  case 'register-script':
-  $scriptURI = getObjectURI();
-  debug("script $scriptURI");
-  if(!registerScript($scriptURI, $_POST['name'], $_POST['version'])) {
-    scrupDie(400, "Could not register script $scriptURI");
-  }
-  break;
+	case "register-script":
+		$scriptURI = getObjectURI();
+		debug("script $scriptURI");
+		if (
+			!registerScript(
+				$scriptURI,
+				$_POST["name"] ?? "",
+				$_POST["version"] ?? "",
+			)
+		) {
+			scrupDie(400, "Could not register script $scriptURI");
+		}
+		break;
 
-  case 'register-client':
-  $clientURI = getObjectURI();
-  debug("client $clientURI");
-  debug(print_r($_POST));
-  if(!registerClient($clientURI, $_POST['linkkey'], $_POST['version'], $_POST['pin'])) {
-    scrupDie(400, "Could not register client $clientURI");
-  }
-  break;
+	case "register-client":
+		$clientURI = getObjectURI();
+		debug("client $clientURI");
+		// debug(print_r($_POST));
+		if (
+			!registerClient(
+				$clientURI,
+				$_POST["linkkey"] ?? "",
+				$_POST["version"] ?? "",
+				$_POST["pin"] ?? "",
+			)
+		) {
+			scrupDie(400, "Could not register client $clientURI");
+		}
+		break;
 
-  default:
-  scrupDie(400, "unknown action $action-$type");
+	case "get-version-": // defaults to script
+	case "get-version-script":
+		getVersion($_REQUEST["name"] ?? "");
+		break;
+
+	default:
+		scrupDie(
+			400,
+			"Bad Request: unknown action/type combination $action-$type",
+		);
 }
