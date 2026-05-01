@@ -57,7 +57,7 @@ function getObjectURI()
 	) {
 		scrupDie(400, "Bad Request: missing loginURI, type, or action");
 	}
-	$region = trim(explode("(", getenv("HTTP_X_SECONDLIFE_REGION"))[0]);
+	$region = trim(explode("(", $_SERVER["HTTP_X_SECONDLIFE_REGION"] ?? "")[0]);
 	switch ($_POST["type"]) {
 		case "server":
 			return $_POST["loginURI"] .
@@ -65,7 +65,8 @@ function getObjectURI()
 				"/" .
 				SCRUP_SLUG .
 				"/server/" .
-				getenv("HTTP_X_SECONDLIFE_OBJECT_KEY");
+				$_SERVER["HTTP_X_SECONDLIFE_OBJECT_KEY"] ??
+				"";
 			break;
 
 		case "client":
@@ -77,7 +78,7 @@ function getObjectURI()
 			if (isset($_POST["linkkey"])) {
 				$link = $_POST["linkkey"];
 			} else {
-				$link = getenv("HTTP_X_SECONDLIFE_OBJECT_KEY");
+				$link = $_SERVER["HTTP_X_SECONDLIFE_OBJECT_KEY"] ?? "";
 			}
 			return $_POST["loginURI"] .
 				$region .
@@ -269,7 +270,7 @@ function registerClient($uri, $link, $version, $pin)
 			isset($_POST["scrupVersion"]) &&
 			version_compare($_POST["scrupVersion"], SCRUP_VERSION) < 0
 		) {
-			$link = getenv("HTTP_X_SECONDLIFE_OBJECT_KEY");
+			$link = $_SERVER["HTTP_X_SECONDLIFE_OBJECT_KEY"] ?? "";
 		} else {
 			scrupDie(400, "The missing link key ($version)");
 		}
@@ -329,9 +330,9 @@ function inWorldOrDie()
 {
 	// if (!$_SERVER["HTTP_X_SECONDLIFE_SHARD"]) {
 	if (
-		empty(getenv("HTTP_X_SECONDLIFE_SHARD")) ||
-		empty(getenv("HTTP_X_SECONDLIFE_REGION")) ||
-		empty(getenv("HTTP_X_SECONDLIFE_OBJECT_KEY"))
+		empty($_SERVER["HTTP_X_SECONDLIFE_SHARD"] ?? "") ||
+		empty($_SERVER["HTTP_X_SECONDLIFE_REGION"] ?? "") ||
+		empty($_SERVER["HTTP_X_SECONDLIFE_OBJECT_KEY"] ?? "")
 	) {
 		scrupDie(
 			400,
