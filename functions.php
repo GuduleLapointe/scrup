@@ -13,6 +13,7 @@ function debug($message)
 
 function scrupDie(?int $status, string $message = "")
 {
+	$status = $status ?? 200;
 	if (empty($message)) {
 		switch ($status) {
 			case 200:
@@ -108,24 +109,26 @@ function getObjectURI()
  */
 function getVersion($name = null, $type = "script")
 {
-	if (empty($name)) {
-		scrupDie(400, "Bad Request: missing {$type} name");
-	}
-
 	global $scrupdb;
 
-	$stmt = $scrupdb->prepare(
-		"SELECT version FROM scripts WHERE name = :name
+	if ($type == "scrup" || empty($name . $type)) {
+		$version = "Scrup " . SCRUP_VERSION . " Server";
+	} elseif (empty($name)) {
+		scrupDie(400, "Bad Request: missing {$type} name");
+	} else {
+		$stmt = $scrupdb->prepare(
+			"SELECT version FROM scripts WHERE name = :name
     	ORDER BY version DESC, lastseen DESC LIMIT 1;",
-	);
-	$stmt->bindValue(":name", $name, SQLITE3_TEXT);
-	$row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
-
-	if (!$row) {
-		scrupDie(404, "Script not found");
+		);
+		$stmt->bindValue(":name", $name, SQLITE3_TEXT);
+		$row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+		$version = !$row ? null : $row["version"];
+		if (empty($version)) {
+			scrupDie(404, "Script not found");
+		}
 	}
 
-	scrupDie(200, $row["version"]);
+	return $version;
 }
 
 /**
@@ -264,7 +267,7 @@ function registerClient($uri, $link, $version, $pin)
 	if (empty($link)) {
 		if (
 			isset($_POST["scrupVersion"]) &&
-			version_compare($_POST["scrupVersion"], "1.1.0") < 0
+			version_compare($_POST["scrupVersion"], SCRUP_VERSION) < 0
 		) {
 			$link = getenv("HTTP_X_SECONDLIFE_OBJECT_KEY");
 		} else {

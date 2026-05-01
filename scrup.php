@@ -2,7 +2,7 @@
 /**
  * Scrup - LSL scripts auto-update
  *
- * Version: 1.0.3
+ * Version: 1.2.0
  * Author: Speculoos World
  * GitHub URI: https://github.com/GuduleLapointe/scrup
  * Requires PHP: 5.5
@@ -23,6 +23,8 @@ if (file_exists("config.php")) {
 }
 
 define("SCRUP_SLUG", "scrup");
+define("SCRUP_VERSION", "1.2.0");
+
 define(
 	"SCRUP_TMP",
 	(ini_get("upload_tmp_dir") ?: sys_get_temp_dir()) . "/" . __NAMESPACE__,
@@ -81,12 +83,17 @@ switch ("$action-$type") {
 
 	case "get-version-": // defaults to script
 	case "get-version-script":
-		getVersion($_REQUEST["name"] ?? "");
+	case "get-version-scrup":
+		$version = getVersion(
+			$_REQUEST["name"] ?? null,
+			$_REQUEST["type"] ?? null,
+		);
+		scrupDie(200, $version);
 		break;
 
 	default:
 		scrupDie(
 			400,
-			"Bad Request: unknown action/type combination $action-$type",
+			"Bad Request: unknown action/type combination $action/$type",
 		);
 }
