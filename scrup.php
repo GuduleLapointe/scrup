@@ -28,7 +28,7 @@ if (file_exists(__DIR__ . "/config.php")) {
 $scrup = new Scrup(defined("DATA_DIR") ? DATA_DIR : null);
 
 $action = $_REQUEST["action"] ?? "";
-$type   = $_REQUEST["type"]   ?? "";
+$type = $_REQUEST["type"] ?? "";
 
 switch ("$action-$type") {
 	case "register-server":
@@ -40,24 +40,32 @@ switch ("$action-$type") {
 
 	case "register-script":
 		$uri = Scrup::getObjectURI();
-		if (!$scrup->registerScript($uri, $_POST["name"] ?? "", $_POST["version"] ?? "")) {
+		if (
+			!$scrup->registerScript(
+				$uri,
+				$_POST["name"] ?? "",
+				$_POST["version"] ?? "",
+			)
+		) {
 			Scrup::respond(400, "Could not register script $uri");
 		}
 		break;
 
 	case "register-client":
 		$uri = Scrup::getObjectURI();
-		if (!$scrup->registerClient(
-			$uri,
-			$_POST["linkkey"]  ?? "",
-			$_POST["version"]  ?? "",
-			$_POST["pin"]      ?? "",
-		)) {
+		if (
+			!$scrup->registerClient(
+				$uri,
+				$_POST["linkkey"] ?? "",
+				$_POST["version"] ?? "",
+				$_POST["pin"] ?? "",
+			)
+		) {
 			Scrup::respond(400, "Could not register client $uri");
 		}
 		break;
 
-	case "get-version-":       // no type param — defaults to server version
+	case "get-version-": // no type param — defaults to server version
 	case "get-version-script":
 	case "get-version-scrup":
 		$version = $scrup->getVersion(
@@ -68,5 +76,8 @@ switch ("$action-$type") {
 		break;
 
 	default:
-		Scrup::respond(400, "Bad Request: unknown action/type combination $action/$type");
+		Scrup::respond(
+			400,
+			"Bad Request: unknown action/type combination $action/$type",
+		);
 }

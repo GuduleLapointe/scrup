@@ -7,89 +7,111 @@
  *
  * Insert this code inside your own script.
  *
- * In initial parameters below, set the scrupURL, according to you web server
- * installation of scrup.php library.
+ * In initial parameters below, set scrupURL. Use the REST API base URL
+ * (e.g. https://example.com/api/v3/scrup) for a current installation, or
+ * the legacy direct URL (e.g. https://example.com/scrup/scrup.php) for older
+ * installations. The script detects the style automatically.
  *
- * In the beginning of scrup() function, set loginURI according to your
- * platform, OpenSimulator or Second Life. Uncomment only the choice matching
- * your platform, without changing it. It won't work with a wrong value!
+ * At the beginning of the scrup() function, uncomment only the loginURI line
+ * matching your platform. It won't work with a wrong value!
  *
- * - make sure to add scrup(TRUE) command in default state_entry(), and on_rez()
- *   if you don't llResetScript() at this stage
- * - if your script use multiple states, you might (or not) need to disable
- *   updates in some states (see example below)
- * - if you need custom settings, do not allow modifying values in your live
- *   script (they would be overidden at each update), use another method to
- *   store them, like the object description or a notecard
+ * - call scrup(TRUE) in default state_entry() and in on_rez() if you don't
+ *   llResetScript() there
+ * - if your script uses multiple states, you may want to call scrup(FALSE) in
+ *   states where you don't want updates (they would restart the script)
+ * - if you need custom settings, do not store them in your live script (they
+ *   would be overwritten at each update); use the object description or a
+ *   notecard instead
  *
  * To push a new release:
  * - update the version by renaming the script (semantic version x.y.z at the
  *   end, with a space before)
  * - put a copy of the script, non running, in the update server object
- *   (alongide ScrupServer script)
+ *   (alongside ScrupServer script)
  */
-
-string scrupURL = ""; // Change to your scrup.php URL
-integer scrupAllowUpdates = TRUE; // should always be true, except for debug
-
-string loginURI; // will be set by scrup() function
-string scrupRequestID; // will be set dynamically
-integer scrupSayVersion = TRUE; // to owner, after start or update
-integer scrupPin;// will be set dynamically
-string version; // do not set here, it will be fetched from the script name
 
 debug(string message) {
     // llOwnerSay("/me " + llGetScriptName() + ": " + message);
 }
 
-scrup(integer enable) {
-    // Uncomment the loginURI for your platform, comment or delete other line
-    // loginURI = osGetGridLoginURI();  // If in OpenSimulator
-    // loginURI = "secondlife://";      // If in Second Life
+string scrupURL = ""; // REST base URL or legacy scrup.php URL
+integer scrupAllowUpdates = TRUE; // set to FALSE only for debugging
+integer scrupSayVersion = TRUE; // announces version to owner after start or update
 
-    if(loginURI == "" || scrupURL == "" |! scrupAllowUpdates |! enable)  {
-        if(loginURI=="") llOwnerSay("loginURI not configured");
-        else if(scrupURL=="") llOwnerSay("scrupURL not configured");
-        else if(!scrupAllowUpdates) debug("scrupAllowUpdates is set to false");
-        else debug("scup suspend");
+string scrupRequestID; // set dynamically, used in http_response handler
+string version; // set dynamically from the script name
+
+scrup(integer enable) {
+    // Uncomment the loginURI for your platform, comment or delete the other
+    string loginURI = osGetGridLoginURI();  // If in OpenSimulator
+    // string loginURI = "secondlife://";   // If in Second Life
+
+    if (loginURI == "" || scrupURL == "" || !scrupAllowUpdates || !enable) {
+        if (loginURI == "") llOwnerSay("loginURI not configured");
+        else if (scrupURL == "") llOwnerSay("scrupURL not configured");
         llSetRemoteScriptAccessPin(0);
         return;
     }
 
-    string scrupLibrary = "1.1.1";
-    version = ""; list parts=llParseString2List(llGetScriptName(), [" "], []);
-    integer i = 1; do {
+    string scrupVersion = "1.2.0";
+
+    // Detect API style: legacy (.php URL uses POST body params) vs REST (path-based)
+    string clientEndpoint;
+    list extraParams;
+    if (llSubStringIndex(scrupURL, ".php") >= 0) {
+        clientEndpoint = scrupURL;
+        extraParams = ["action=register", "type=client"];
+    } else {
+        clientEndpoint = scrupURL + "/register/client";
+        extraParams = [];
+    }
+
+    // Extract version from script name (first token matching x.y.z[-suffix])
+    version = "";
+    list parts = llParseString2List(llGetScriptName(), [" "], []);
+    integer i;
+    for (i = 1; i < llGetListLength(parts); i++) {
         string part = llList2String(parts, i);
         string main = llList2String(llParseString2List(part, ["-"], []), 0);
-        if(llGetListLength(llParseString2List(main, ["."], [])) > 1
-        && (integer)llDumpList2String(llParseString2List(main, ["."], []), "")) {
+        if (llGetListLength(llParseString2List(main, ["."], [])) > 1
+        && llGetListLength(llParseString2List(main, [".", 0,1,2,3,4,5,6,7,8,9], [])) == 0) {
             version = part;
-            jump break;
+            jump versionFound;
         }
-    } while (i++ < llGetListLength(parts)-1 );
-    if(version == "") { scrup(FALSE); return; }
-    @break;
-    list scriptInfo = [ llDumpList2String(llList2List(parts, 0, i - 1), " "), version ];
-    string scriptname = llList2String(scriptInfo, 0);
-    version = llList2String(scriptInfo, 1);
-    if(scrupSayVersion) llOwnerSay(scriptname + " version " + version);
+    }
+    llSetRemoteScriptAccessPin(0);
+    return;
+    @versionFound;
+
+    string scriptname = llDumpList2String(llList2List(parts, 0, i - 1), " ");
+    if (scrupSayVersion) llOwnerSay(scriptname + " version " + version);
     scrupSayVersion = FALSE;
 
-    if(llGetStartParameter() != 0) { i=0; do {
-        string found = llGetInventoryName(INVENTORY_SCRIPT, i);
-        if(found != llGetScriptName() && llSubStringIndex(found, scriptname + " ") == 0) {
-            llOwnerSay("deleting duplicate '" + found + "'");
-            llRemoveInventory(found);
-        }
-    } while (i++ < llGetInventoryNumber(INVENTORY_SCRIPT)-1); }
+    // After an update, delete any older copy of this script still in inventory
+    if (llGetStartParameter() != 0) {
+        i = 0; do {
+            string found = llGetInventoryName(INVENTORY_SCRIPT, i);
+            if (found != llGetScriptName() && llSubStringIndex(found, scriptname + " ") == 0) {
+                llOwnerSay("deleting duplicate '" + found + "'");
+                llRemoveInventory(found);
+            }
+        } while (i++ < llGetInventoryNumber(INVENTORY_SCRIPT) - 1);
+    }
 
-    scrupPin = (integer)(llFrand(999999999) + 56748);
-    list params = [ "loginURI=" + loginURI, "action=register",
-    "type=client", "linkkey=" + (string)llGetKey(), "scriptname=" + scriptname,
-    "pin=" + (string)scrupPin, "version=" + version, "scrupLibrary=" + scrupLibrary ];
-    scrupRequestID = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
-    HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
-    llDumpList2String(params, "&"));
+    integer scrupPin = (integer)(llFrand(999999999) + 56748);
+    list params = [
+        "loginURI=" + loginURI,
+        "linkkey=" + (string)llGetKey(),
+        "scriptname=" + scriptname,
+        "pin=" + (string)scrupPin,
+        "version=" + version,
+        "scrupVersion=" + scrupVersion
+    ] + extraParams;
+    scrupRequestID = llHTTPRequest(
+        clientEndpoint,
+        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
+        llDumpList2String(params, "&")
+    );
     llSetRemoteScriptAccessPin(scrupPin);
 }
 
@@ -99,30 +121,35 @@ default
     {
         scrup(ACTIVE);
 
-        // DISABLE NEXT COMMAND IN PUBLIC ENVIRONMENT llSetText is used here
-        // only for debug purposes, you don't need it in your script (and if you
-        // want it, NEVER display llGetStartParameter() value publicly)
-        llSetText(llGetObjectName() + "\nScrupClient" + "\nallow updates: " + (string)scrupAllowUpdates + "\nstart parameter " + (string)llGetStartParameter() + "\n---\n" + llGetScriptName(),<1,1,1>, 1.0);
+        // REMOVE or restrict the following in production — displayed here for
+        // debug purposes only. Never show llGetStartParameter() publicly.
+        llSetText(llGetObjectName()
+            + "\nScrupClient"
+            + "\nallow updates: " + (string)scrupAllowUpdates
+            + "\nstart parameter " + (string)llGetStartParameter()
+            + "\n---\n" + llGetScriptName(), <1,1,1>, 1.0);
     }
 
     on_rez(integer start_param)
     {
-        scrup(ACTIVE); // not needed if you llResetScript() too.
+        scrup(ACTIVE); // not needed if you llResetScript() here instead
     }
 
     changed(integer change)
     {
-        if(change & CHANGED_INVENTORY) {
-            // Do not reset script right after an inventory change: the current
-            // script would delete the updated version sent by Scrup server.
-            // If you need to reset script, use llSleep() or llSetTimerEvent().
+        if (change & CHANGED_INVENTORY) {
+            // Do not reset right after inventory change: the current script
+            // would delete the updated version just delivered by ScrupServer.
+            // If you need a reset, use llSleep() or llSetTimerEvent() first.
         }
     }
 
     http_response(key request_id, integer status, list metadata, string body)
     {
-        if(request_id == scrupRequestID) {
-            debug("response " + (string)status + "\n" + body);
+        if (request_id == scrupRequestID) {
+            // Scrup client does not process the http response, code below
+            // is only for debugging.
+            // debug("response " + (string)status + "\n" + body);
         }
     }
 }
@@ -131,13 +158,9 @@ state exampleWithoutUpdates
 {
     state_entry()
     {
-        // If you use multiple states, depending on the way your script work,
-        // you might or not want to disable updates when entering other states,
-        // as an update would force a restart and go back to default state. In
-        // this cases, updates will resume when coming back to default state.
-        //
-        // Disable authorisation when in this state:
+        // If your script uses multiple states, you may want to disable updates
+        // while in states where a forced restart would be disruptive.
+        // Updates will resume automatically when returning to default state.
         scrup(FALSE);
-        // llSetRemoteScriptAccessPin(0);
     }
 }

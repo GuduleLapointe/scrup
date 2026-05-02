@@ -1,15 +1,16 @@
-string version = "1.1.1";
+string version = "1.2.0";
 /**
  * ScrupServer
  *
  * Place this script in a prim, alongside scripts to serve updates for.
  *
- * In initial parameters below, set the scrupURL, according to you web server
- * installation of scrup.php library.
+ * In initial parameters below, set the scrupURL. Use the REST API base URL
+ * (e.g. https://example.com/api/v3/scrup) for a current installation, or
+ * the legacy direct URL (e.g. https://example.com/scrup/scrup.php) for older
+ * installations. The script detects the style automatically.
  *
  * Under default "state_entry", set loginURI according to your platform.
- * OpenSimulator or Second Life. Uncomment only the choice matching your
- * platform, without changing it. It won't work with a wrong value!
+ * Uncomment only the choice matching your platform, without changing it.
  *
  * Then add the scripts to deliver in the same prim as this script:
  * - They have to be set as NON RUNNING to avoid mismatches.
@@ -20,7 +21,7 @@ string version = "1.1.1";
 
 integer DEBUG = FALSE;
 
-string scrupURL = ""; // Change to your scrup.php URL
+string scrupURL = ""; // REST base URL or legacy scrup.php URL
 integer scrupCheckInterval = 300; // In seconds
 
 integer setText = TRUE;
@@ -47,79 +48,84 @@ notify(string message) {
     llOwnerSay("/me " + llGetScriptName() + ": " + message);
 }
 
+// Return the endpoint URL for a register action.
+// Supports both REST API (scrupURL/register/type) and legacy (scrupURL with
+// action/type in POST body — detected when scrupURL contains ".php").
+string registerEndpoint(string type) {
+    if (llSubStringIndex(scrupURL, ".php") >= 0) return scrupURL;
+    return scrupURL + "/register/" + type;
+}
+
+// Return extra params required for legacy endpoints (empty for REST).
+list legacyParams(string type) {
+    if (llSubStringIndex(scrupURL, ".php") >= 0)
+        return ["action=register", "type=" + type];
+    return [];
+}
+
 startServer() {
     if(loginURI == "") {
-        notify("SERVER NOT STARTED. Set loginURI value in default state_entry section, according to your platform (OpenSimulator or Second Life), and change scrupURL to your scrup.php web URL");
+        notify("SERVER NOT STARTED. Set loginURI in default state_entry, and set scrupURL to your Scrup web URL.");
         return;
     }
-
-    if(scrupURL =="") {
-        notify("Server not started. Update scrupURL in your script with your scrup.php web URL");
+    if(scrupURL == "") {
+        notify("Server not started. Set scrupURL in the script.");
         return;
     }
-    list params = [
-    "loginURI=" + loginURI,
-    "action=register",
-    "type=server"
-    ];
-    registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST",
-    HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
-    llDumpList2String(params, "&"));
-    debug("requested server registration on " + scrupURL + "(" + (string) registerRequestId + ")");
+    list params = ["loginURI=" + loginURI] + legacyParams("server");
+    registerRequestId = llHTTPRequest(
+        registerEndpoint("server"),
+        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
+        llDumpList2String(params, "&")
+    );
+    debug("requested server registration on " + scrupURL + " (" + (string)registerRequestId + ")");
 }
 
 list parseSoftwareInfo(string name)
 {
-    string foundVersion = ""; list parts=llParseString2List(name, [" "], []);
-    integer i = 1; do {
+    list parts = llParseString2List(name, [" "], []);
+    integer i;
+    for (i = 1; i < llGetListLength(parts); i++) {
         string part = llList2String(parts, i);
         string main = llList2String(llParseString2List(part, ["-"], []), 0);
-        if(llGetListLength(llParseString2List(main, ["."], [])) > 1
-        && (integer)llDumpList2String(llParseString2List(main, ["."], []), "")) {
-            foundVersion = part;
-            jump break;
+        if (llGetListLength(llParseString2List(main, ["."], [])) > 1
+        && llGetListLength(llParseString2List(main, [".", 0,1,2,3,4,5,6,7,8,9], [])) == 0) {
+            return [
+                llDumpList2String(llList2List(parts, 0, i - 1), " "),
+                part,
+                llDumpList2String(llList2List(parts, i + 1, llGetListLength(parts)), " ")
+            ];
         }
-    } while (i++ < llGetListLength(parts)-1 );
-    if(foundVersion == "") return [ name ];
-    @break;
-
-    return [
-    llDumpList2String(llList2List(parts, 0, i - 1), " "),
-    foundVersion,
-    llDumpList2String(llList2List(parts, i+1, llGetListLength(parts)), " ")
-    ];
+    }
+    return [name];
 }
 
 registerScripts() {
     debug("Get scripts list");
     scripts = [];
-    integer i = 0; do {
-        string script = llGetInventoryName(INVENTORY_SCRIPT, i);
-        string name = getScriptName(script);
-        string scriptVersion = getScriptVersion(script);
-        if(scriptVersion != "") {
-            scripts += script;
-        }
-    } while(i++ < llGetInventoryNumber(INVENTORY_SCRIPT) -1 );
+    integer i;
+    for (i = 0; i < llGetInventoryNumber(INVENTORY_SCRIPT); i++) {
+        string s = llGetInventoryName(INVENTORY_SCRIPT, i);
+        if (getScriptVersion(s) != "") scripts += s;
+    }
     if(setText) {
         llSetText(llGetObjectName()
         + "\nScrupServer " + version
-        + "\n---\n" + llDumpList2String(scripts, "\n"),<1,1,1>, 1.0);
+        + "\n---\n" + llDumpList2String(scripts, "\n"), <1,1,1>, 1.0);
     }
     registerScript(0);
 }
 
 registerScript(integer i) {
     string script = llGetInventoryName(INVENTORY_SCRIPT, i);
-    if(script=="") {
-        debug("end list " + (string)i);
+    if(script == "") {
+        debug("end of list at " + (string)i);
         llSetTimerEvent(scrupCheckInterval);
         return;
     }
-
     if (script == llGetScriptName()) {
-        debug("that's me, not processing");
-        registerScript(i+1);
+        debug("that's me, skipping");
+        registerScript(i + 1);
         return;
     }
 
@@ -127,21 +133,23 @@ registerScript(integer i) {
     string scriptVersion = getScriptVersion(script);
     if(scriptVersion == "") {
         notify("no version number for " + script + ", ignoring");
-        registerScript(i+1);
+        registerScript(i + 1);
         return;
     }
 
     list params = [
-    "loginURI=" + loginURI,
-    "action=register",
-    "type=script",
-    "name=" + scriptname,
-    "version=" + scriptVersion
-    ];
+        "loginURI=" + loginURI,
+        "name=" + scriptname,
+        "version=" + scriptVersion
+    ] + legacyParams("script");
     requestedScriptName = script;
     requestedScriptId = i;
-    registerRequestId = llHTTPRequest(scrupURL, [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"], llDumpList2String(params, "&"));
-    debug("requested script " + (string)i + ": " + scriptname + " (" + scriptVersion + ") status");
+    registerRequestId = llHTTPRequest(
+        registerEndpoint("script"),
+        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
+        llDumpList2String(params, "&")
+    );
+    debug("requested script " + (string)i + ": " + scriptname + " (" + scriptVersion + ")");
 }
 
 string getScriptName(string name)
@@ -158,12 +166,10 @@ default
 {
     state_entry()
     {
-    	if(setText) {
-        	llSetText("", <1,1,1>, 1.0);
-        }
-        // Uncomment the loginURI for your platform, leave other one commented
+        if(setText) llSetText("", <1,1,1>, 1.0);
+        // Uncomment the loginURI for your platform, leave the other commented
         loginURI = osGetGridLoginURI();  // If in OpenSimulator
-        // loginURI = "secondlife://";      // If in Second Life
+        // loginURI = "secondlife://";   // If in Second Life
 
         startServer();
     }
@@ -186,12 +192,11 @@ default
     http_response(key request_id, integer status, list metadata, string body)
     {
         if(request_id == registerRequestId) {
-            if(status ==200) {
+            if(status == 200) {
                 state serving;
             } else {
-                notify("could not register on " + scrupURL + " server status " + (string)status
-                + "\n" + body
-                );
+                notify("could not register on " + scrupURL + ", server status " + (string)status
+                + "\n" + body);
             }
         }
     }
@@ -221,13 +226,13 @@ state serving {
 
     touch_start(integer index)
     {
-        touchStarted=llGetTime();
+        touchStarted = llGetTime();
     }
 
     touch_end(integer num)
     {
-        if(llDetectedKey(0)==llGetOwner() && llGetTime() - touchStarted > 2)
-        llResetScript();
+        if(llDetectedKey(0) == llGetOwner() && llGetTime() - touchStarted > 2)
+            llResetScript();
     }
 
     timer()
@@ -238,31 +243,30 @@ state serving {
     http_response(key request_id, integer status, list metadata, string body)
     {
         if(request_id == registerRequestId) {
-            debug("response for "  + requestedScriptName + ": " + (string)status + "\n" + body);
-            if(status ==200) {
-                list clients = llParseString2List(body, [ "," ], [] );
+            debug("response for " + requestedScriptName + ": " + (string)status + "\n" + body);
+            if(status == 200) {
+                list clients = llParseString2List(body, [","], []);
                 if(llGetListLength(clients) > 1) {
                     llSetTimerEvent(0); // might be long, suspend other checks
-                    integer i=0; do {
-                        list client = llParseString2List(llList2String(clients, i), [ " " ], [] );
+                    integer i;
+                    for (i = 0; i < llGetListLength(clients); i++) {
+                        list client = llParseString2List(llList2String(clients, i), [" "], []);
                         key clientKey = llList2Key(client, 0);
                         integer pin = llList2Integer(client, 1);
                         if(clientKey == "ENDLIST") jump endlist;
                         if(clientKey != llGetKey() && llKey2Name(clientKey) != "") {
-                            // If no name, the object has been deleted or is in another grid
+                            // If no name, the object has been deleted or is in another region
                             debug("sending update for " + requestedScriptName + " to " + llKey2Name(clientKey));
                             llRemoteLoadScriptPin(clientKey, requestedScriptName, pin, TRUE, pin);
                         }
-                    } while (i++ < llGetListLength(clients)-1);
+                    }
                     @endlist;
                 }
-                llSleep(1); // avoid asking too much too fast
-                registerScript( requestedScriptId + 1 );
+                llSleep(1); // avoid flooding the server
+                registerScript(requestedScriptId + 1);
             } else {
-                notify("could not register " + requestedScriptName + ", web server answered " + (string)status
-                // + " metadata " + llDumpList2String(metadata, ", ")
-                + "\n" + body
-                );
+                notify("could not register " + requestedScriptName + ", server status " + (string)status
+                + "\n" + body);
             }
         }
     }
