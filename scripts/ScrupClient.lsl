@@ -34,12 +34,13 @@ debug(string message) {
     // llOwnerSay("/me " + llGetScriptName() + ": " + message);
 }
 
-string scrupURL = ""; // REST base URL or legacy scrup.php URL
+string version; // Leave empty or match version in script name
+
+string scrupURL = ""; // Leave empty to use API update server
 integer scrupAllowUpdates = TRUE; // set to FALSE only for debugging
 integer scrupSayVersion = TRUE; // announces version to owner after start or update
-
+integer scrupPin = 56748;
 string scrupRequestID; // set dynamically, used in http_response handler
-string version; // set dynamically from the script name
 
 scrup(integer enable) {
     // Uncomment the loginURI for your platform, comment or delete the other
@@ -47,17 +48,25 @@ scrup(integer enable) {
     // string loginURI = "secondlife://";   // If in Second Life
 
     string scrupVersion = "1.2.0";
-    integer scrupPin = 56748;
 
+    if(scrupURL == "" && apiURL != "") {
+    	scrupURL = apiURL + "/scrup";
+    }
     if (loginURI == "" || scrupURL == "" || !scrupAllowUpdates || !enable) {
-        if (loginURI == "") llOwnerSay("loginURI not configured");
-        else if (scrupURL == "") llOwnerSay("scrupURL not configured");
+        if (loginURI == "") llOwnerSay("loginURI not set, auto-updates disabled");
+        else if (scrupURL == "") llOwnerSay("scrupURL not set, auto-updates disabled");
         llSetRemoteScriptAccessPin(0);
         return;
     }
 
+    debug("scrupURL: " + scrupURL);
+    debug(llGetScriptName() + " stored version: " + version);
+
     // Detect API style: legacy (.php URL uses POST body params) vs REST (path-based)
     string clientEndpoint;
+    string scriptname;
+    string scriptnameVersion = "";
+
     list extraParams;
     if (llSubStringIndex(scrupURL, ".php") >= 0) {
         clientEndpoint = scrupURL;
@@ -68,7 +77,7 @@ scrup(integer enable) {
     }
 
     // Extract version from script name (first token matching x.y.z[-suffix])
-    version = "";
+
     list parts = llParseString2List(llGetScriptName(), [" "], []);
     integer i;
     for (i = 1; i < llGetListLength(parts); i++) {
@@ -76,25 +85,32 @@ scrup(integer enable) {
         string main = llList2String(llParseString2List(part, ["-"], []), 0);
         if (llGetListLength(llParseString2List(main, ["."], [])) > 1
         && llGetListLength(llParseString2List(main, [".", 0,1,2,3,4,5,6,7,8,9], [])) == 0) {
-            version = part;
+            scriptnameVersion = part;
+            scriptname = llDumpList2String(llList2List(parts, 0, i - 1), " ");
             jump versionFound;
         }
     }
     scrupAllowUpdates = FALSE;
     llSetRemoteScriptAccessPin(0);
     return;
+
     @versionFound;
 
-    string scriptname = llDumpList2String(llList2List(parts, 0, i - 1), " ");
+    debug(scriptname + " version from name: " + scriptnameVersion);
+    if(version != "" && version != scriptnameVersion) {
+    	llOwnerSay("Inventory name does not match the inside version. To avoid update conflicts,"
+	    	+ "\nyou should rename \"" + llGetScriptName() + "\" as \"" + scriptname + " " + version + "\""
+		);
+    }
 
     // After an update, announce version and delete any older copy in inventory
     if (llGetStartParameter() == scrupPin) {
-        if (scrupSayVersion) llOwnerSay(scriptname + " version " + version);
+        if (scrupSayVersion || DEBUG) llOwnerSay(scriptname + " found version " + version);
         scrupSayVersion = FALSE;
         i = 0; do {
             string found = llGetInventoryName(INVENTORY_SCRIPT, i);
             if (found != llGetScriptName() && llSubStringIndex(found, scriptname + " ") == 0) {
-                llOwnerSay("deleting duplicate '" + found + "'");
+                llOwnerSay("removing previous version '" + found + "'");
                 llRemoveInventory(found);
             }
         } while (i++ < llGetInventoryNumber(INVENTORY_SCRIPT) - 1);
@@ -122,13 +138,10 @@ default
     {
         scrup(ACTIVE);
 
-        // REMOVE or restrict the following in production — displayed here for
-        // debug purposes only. Never show llGetStartParameter() publicly.
-        llSetText(llGetObjectName()
-            + "\nScrupClient"
+        debug("ScrupClient"
             + "\nallow updates: " + (string)scrupAllowUpdates
             + "\nstart parameter " + (string)llGetStartParameter()
-            + "\n---\n" + llGetScriptName(), <1,1,1>, 1.0);
+            + "\n---\n" + llGetScriptName(), <1,1,1>, 1.0));
     }
 
     on_rez(integer start_param)
