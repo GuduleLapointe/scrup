@@ -18,10 +18,11 @@
  * - You can add multiple scripts, they will be processed independently
  */
 
-string version = "1.2.0";
-//string scrupURL = "https://2do.directory/api/v3/scrup"; // REST base URL or legacy scrup.php URL
-//string scrupURL = "https://2do.directory/events-dev/scrup/scrup.php"; // REST base URL or legacy scrup.php URL
-string scrupURL = "https://speculoos.world/scrup/scrup.php"; // REST base URL or legacy scrup.php URL
+string version = "1.2.1";
+
+string scrupURL = "";
+//string scrupURL = "https://2do.directory/api/v3/scrup"; // Modern REST API
+//string scrupURL = "https://speculoos.world/scrup/scrup.php"; // Legacy scrup.php URL
 integer scrupCheckInterval = 300; // In seconds
 
 integer setText = TRUE;
@@ -50,15 +51,15 @@ notify(string message) {
 }
 
 register(string type, list args) {
-	string endpoint;
-	if (llSubStringIndex(scrupURL, ".php") >= 0) {
-		args = ["action=register", "type=" + type] + args;
-		endpoint = scrupURL;
-	} else {
-		endpoint = scrupURL + "/register/" + type;
-	}
+    string endpoint;
+    if (llSubStringIndex(scrupURL, ".php") >= 0) {
+        args = ["action=register", "type=" + type] + args;
+        endpoint = scrupURL;
+    } else {
+        endpoint = scrupURL + "/register/" + type;
+    }
 
-	registerRequestId = llHTTPRequest(
+    registerRequestId = llHTTPRequest(
         endpoint,
         [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
         llDumpList2String(args, "&")
@@ -66,10 +67,10 @@ register(string type, list args) {
 
     if(registerRequestId == "") {
         notify("SERVER NOT STARTED. Failed to send register request, check scrupURL.");
-    } else {
-    	debug("requested register " + type + "\nendpoint " + endpoint
-     	+ "\nregisterRequestId " + registerRequestId
-      	+ "\npost args\n   " + llDumpList2String(args, "\n   "));
+    //} else {
+    //     debug("requested register " + type + "\nendpoint " + endpoint
+    //     + "\nregisterRequestId " + registerRequestId
+    //      + "\npost args\n   " + llDumpList2String(args, "\n   "));
     }
 }
 
@@ -89,7 +90,7 @@ startServer() {
     //    [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     //    llDumpList2String(params, "&")
     //);
-    //debug("requested server registration on " + scrupURL + " (" + (string)registerRequestId + ")");
+    // debug("requested server registration on " + scrupURL + " (" + (string)registerRequestId + ")");
 }
 
 list parseSoftwareInfo(string name)
@@ -112,7 +113,7 @@ list parseSoftwareInfo(string name)
 }
 
 registerScripts() {
-    debug("Get scripts list");
+    // debug("Get scripts list");
     scripts = [];
     integer i;
     for (i = 0; i < llGetInventoryNumber(INVENTORY_SCRIPT); i++) {
@@ -130,12 +131,12 @@ registerScripts() {
 registerScript(integer i) {
     string script = llGetInventoryName(INVENTORY_SCRIPT, i);
     if(script == "") {
-        debug("end of list at " + (string)i);
+        // debug("end of list at " + (string)i);
         llSetTimerEvent(scrupCheckInterval);
         return;
     }
     if (script == llGetScriptName()) {
-        debug("that's me, skipping");
+        // debug("that's me, skipping");
         registerScript(i + 1);
         return;
     }
@@ -166,7 +167,7 @@ registerScript(integer i) {
     //    [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
     //    llDumpList2String(params, "&")
     //);
-    //debug("requested script " + (string)i + ": " + scriptname + " (" + scriptVersion + ")");
+    // debug("requested script " + (string)i + ": " + scriptname + " (" + scriptVersion + ")");
 }
 
 string getScriptName(string name)
@@ -210,14 +211,14 @@ default
     {
         if(request_id == registerRequestId) {
             if(status == 200) {
-            	debug("200 OK: switch to state serving");
+                // debug("200 OK: switch to state serving");
                 state serving;
             } else {
                 notify("status " + status + ": could not register on " + scrupURL + ", server status " + (string)status
                 + "\n" + body);
             }
         } else {
-        	debug("status " + status + ": unknown request_id " + request_id);
+            // debug("status " + status + ": unknown request_id " + request_id);
         }
     }
 }
@@ -225,7 +226,7 @@ default
 state serving {
     state_entry()
     {
-        notify("start serving updates");
+        notify(scrupURL);
         registerScripts();
     }
 
@@ -263,7 +264,7 @@ state serving {
     http_response(key request_id, integer status, list metadata, string body)
     {
         if(request_id == registerRequestId) {
-            debug("response for " + requestedScriptName + ": " + (string)status + "\n" + body);
+            // debug("response for " + requestedScriptName + ": " + (string)status + "\n" + body);
             if(status == 200) {
                 list clients = llParseString2List(body, [","], []);
                 if(llGetListLength(clients) > 1) {
@@ -276,7 +277,7 @@ state serving {
                         if(clientKey == "ENDLIST") jump endlist;
                         if(clientKey != llGetKey() && llKey2Name(clientKey) != "") {
                             // If no name, the object has been deleted or is in another region
-                            debug("sending update for " + requestedScriptName + " to " + llKey2Name(clientKey));
+                            // debug("sending update for " + requestedScriptName + " to " + llKey2Name(clientKey));
                             llRemoteLoadScriptPin(clientKey, requestedScriptName, pin, TRUE, pin);
                         }
                     }
