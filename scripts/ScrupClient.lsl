@@ -80,16 +80,17 @@ scrup(integer enable) {
             jump versionFound;
         }
     }
+    scrupAllowUpdates = FALSE;
     llSetRemoteScriptAccessPin(0);
     return;
     @versionFound;
 
     string scriptname = llDumpList2String(llList2List(parts, 0, i - 1), " ");
-    if (scrupSayVersion) llOwnerSay(scriptname + " version " + version);
-    scrupSayVersion = FALSE;
 
-    // After an update, delete any older copy of this script still in inventory
-    if (llGetStartParameter() != 0) {
+    // After an update, announce version and delete any older copy in inventory
+    if (llGetStartParameter() == scrupPin) {
+        if (scrupSayVersion) llOwnerSay(scriptname + " version " + version);
+        scrupSayVersion = FALSE;
         i = 0; do {
             string found = llGetInventoryName(INVENTORY_SCRIPT, i);
             if (found != llGetScriptName() && llSubStringIndex(found, scriptname + " ") == 0) {
