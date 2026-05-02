@@ -46,14 +46,15 @@ scrup(integer enable) {
     string loginURI = osGetGridLoginURI();  // If in OpenSimulator
     // string loginURI = "secondlife://";   // If in Second Life
 
+    string scrupVersion = "1.2.0";
+    integer scrupPin = 56748;
+
     if (loginURI == "" || scrupURL == "" || !scrupAllowUpdates || !enable) {
         if (loginURI == "") llOwnerSay("loginURI not configured");
         else if (scrupURL == "") llOwnerSay("scrupURL not configured");
         llSetRemoteScriptAccessPin(0);
         return;
     }
-
-    string scrupVersion = "1.2.0";
 
     // Detect API style: legacy (.php URL uses POST body params) vs REST (path-based)
     string clientEndpoint;
@@ -98,7 +99,6 @@ scrup(integer enable) {
         } while (i++ < llGetInventoryNumber(INVENTORY_SCRIPT) - 1);
     }
 
-    integer scrupPin = (integer)(llFrand(999999999) + 56748);
     list params = [
         "loginURI=" + loginURI,
         "linkkey=" + (string)llGetKey(),
