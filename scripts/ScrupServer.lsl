@@ -1,4 +1,3 @@
-string version = "1.2.0";
 /**
  * ScrupServer
  *
@@ -19,12 +18,14 @@ string version = "1.2.0";
  * - You can add multiple scripts, they will be processed independently
  */
 
-integer DEBUG = FALSE;
-
-string scrupURL = ""; // REST base URL or legacy scrup.php URL
+string version = "1.2.0";
+//string scrupURL = "https://2do.directory/api/v3/scrup"; // REST base URL or legacy scrup.php URL
+//string scrupURL = "https://2do.directory/events-dev/scrup/scrup.php"; // REST base URL or legacy scrup.php URL
+string scrupURL = "https://speculoos.world/scrup/scrup.php"; // REST base URL or legacy scrup.php URL
 integer scrupCheckInterval = 300; // In seconds
 
 integer setText = TRUE;
+integer DEBUG = TRUE;
 
 // Do not change below
 string registerRequestId;
@@ -48,19 +49,28 @@ notify(string message) {
     llOwnerSay("/me " + llGetScriptName() + ": " + message);
 }
 
-// Return the endpoint URL for a register action.
-// Supports both REST API (scrupURL/register/type) and legacy (scrupURL with
-// action/type in POST body — detected when scrupURL contains ".php").
-string registerEndpoint(string type) {
-    if (llSubStringIndex(scrupURL, ".php") >= 0) return scrupURL;
-    return scrupURL + "/register/" + type;
-}
+register(string type, list args) {
+	string endpoint;
+	if (llSubStringIndex(scrupURL, ".php") >= 0) {
+		args = ["action=register", "type=" + type] + args;
+		endpoint = scrupURL;
+	} else {
+		endpoint = scrupURL + "/register/" + type;
+	}
 
-// Return extra params required for legacy endpoints (empty for REST).
-list legacyParams(string type) {
-    if (llSubStringIndex(scrupURL, ".php") >= 0)
-        return ["action=register", "type=" + type];
-    return [];
+	registerRequestId = llHTTPRequest(
+        endpoint,
+        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
+        llDumpList2String(args, "&")
+    );
+
+    if(registerRequestId == "") {
+        notify("SERVER NOT STARTED. Failed to send register request, check scrupURL.");
+    } else {
+    	debug("requested register " + type + "\nendpoint " + endpoint
+     	+ "\nregisterRequestId " + registerRequestId
+      	+ "\npost args\n   " + llDumpList2String(args, "\n   "));
+    }
 }
 
 startServer() {
@@ -72,13 +82,14 @@ startServer() {
         notify("Server not started. Set scrupURL in the script.");
         return;
     }
-    list params = ["loginURI=" + loginURI] + legacyParams("server");
-    registerRequestId = llHTTPRequest(
-        registerEndpoint("server"),
-        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
-        llDumpList2String(params, "&")
-    );
-    debug("requested server registration on " + scrupURL + " (" + (string)registerRequestId + ")");
+    register("server", ["loginURI=" + loginURI]);
+    //list params = ["loginURI=" + loginURI];
+    //registerRequestId = llHTTPRequest(
+    //    registerEndpoint("server"),
+    //    [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
+    //    llDumpList2String(params, "&")
+    //);
+    //debug("requested server registration on " + scrupURL + " (" + (string)registerRequestId + ")");
 }
 
 list parseSoftwareInfo(string name)
@@ -137,19 +148,25 @@ registerScript(integer i) {
         return;
     }
 
-    list params = [
+    //list params = [
+    //    "loginURI=" + loginURI,
+    //    "name=" + scriptname,
+    //    "version=" + scriptVersion
+    //];
+    //+ legacyParams("script");
+    requestedScriptName = script;
+    requestedScriptId = i;
+    register("script", [
         "loginURI=" + loginURI,
         "name=" + scriptname,
         "version=" + scriptVersion
-    ] + legacyParams("script");
-    requestedScriptName = script;
-    requestedScriptId = i;
-    registerRequestId = llHTTPRequest(
-        registerEndpoint("script"),
-        [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
-        llDumpList2String(params, "&")
-    );
-    debug("requested script " + (string)i + ": " + scriptname + " (" + scriptVersion + ")");
+    ]);
+    //registerRequestId = llHTTPRequest(
+    //    registerEndpoint("script"),
+    //    [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"],
+    //    llDumpList2String(params, "&")
+    //);
+    //debug("requested script " + (string)i + ": " + scriptname + " (" + scriptVersion + ")");
 }
 
 string getScriptName(string name)
@@ -166,7 +183,7 @@ default
 {
     state_entry()
     {
-        if(setText) llSetText("", <1,1,1>, 1.0);
+        if(setText) llSetText(llGetScriptName() + " initializing", <1,1,1>, 1.0);
         // Uncomment the loginURI for your platform, leave the other commented
         loginURI = osGetGridLoginURI();  // If in OpenSimulator
         // loginURI = "secondlife://";   // If in Second Life
@@ -193,11 +210,14 @@ default
     {
         if(request_id == registerRequestId) {
             if(status == 200) {
+            	debug("200 OK: switch to state serving");
                 state serving;
             } else {
-                notify("could not register on " + scrupURL + ", server status " + (string)status
+                notify("status " + status + ": could not register on " + scrupURL + ", server status " + (string)status
                 + "\n" + body);
             }
+        } else {
+        	debug("status " + status + ": unknown request_id " + request_id);
         }
     }
 }
