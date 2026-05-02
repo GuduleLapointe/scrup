@@ -1,99 +1,72 @@
 <?php
 /**
- * Scrup - LSL scripts auto-update
+ * Scrup HTTP dispatcher
  *
- * Version: 1.2.0
- * Author: Speculoos World
- * GitHub URI: https://github.com/GuduleLapointe/scrup
- * Requires PHP: 5.5
- * Donate link: https://paypal.me/magicoli
+ * Entry point for direct web requests. Loads the Scrup class (via Composer
+ * autoload if available, or directly otherwise), reads action/type from the
+ * request, and dispatches to the appropriate method.
  *
- * This is the web registration part of Scrup ecosystem.
- * It requires ScrupServer script to run in-world,
- * and ScrupClient to be included in auto-updating scripts.
- *
- * License:           AGPLv3
- * License URI:       https://www.gnu.org/licenses/agpl-3.0.txt
+ * @version 1.2.0
+ * @license AGPLv3
+ * @link    https://github.com/GuduleLapointe/scrup
  */
 
 namespace Scrup;
 
-if (file_exists("config.php")) {
-	include "config.php";
+if (file_exists(__DIR__ . "/vendor/autoload.php")) {
+	require_once __DIR__ . "/vendor/autoload.php";
+} else {
+	require_once __DIR__ . "/app/ScrupDB.php";
+	require_once __DIR__ . "/app/Scrup.php";
 }
 
-define("SCRUP_SLUG", "scrup");
-define("SCRUP_VERSION", "1.2.0");
-
-define(
-	"SCRUP_TMP",
-	(ini_get("upload_tmp_dir") ?: sys_get_temp_dir()) . "/" . __NAMESPACE__,
-);
-if (!file_exists(SCRUP_TMP)) {
-	mkdir(SCRUP_TMP, 0777, true);
+// Optional local config — may define DATA_DIR or other settings.
+if (file_exists(__DIR__ . "/config.php")) {
+	include __DIR__ . "/config.php";
 }
-error_log("SCRUP_TMP: " . SCRUP_TMP);
 
-define("SCRUP_LOG", SCRUP_TMP . "/" . SCRUP_SLUG . ".log");
-
-// define('SCRUP_DBFILE', SCRUP_SLUG  . '.db');
-
-require "functions.php";
-require "sqlite.php";
+$scrup = new Scrup(defined("DATA_DIR") ? DATA_DIR : null);
 
 $action = $_REQUEST["action"] ?? "";
-$type = $_REQUEST["type"] ?? "";
+$type   = $_REQUEST["type"]   ?? "";
+
 switch ("$action-$type") {
 	case "register-server":
-		$serverURI = getObjectURI();
-		if (!registerServer($serverURI)) {
-			scrupDie(403, "Could not register server $serverURI");
+		$uri = Scrup::getObjectURI();
+		if (!$scrup->registerServer($uri)) {
+			Scrup::respond(403, "Could not register server $uri");
 		}
 		break;
 
 	case "register-script":
-		$scriptURI = getObjectURI();
-		debug("script $scriptURI");
-		if (
-			!registerScript(
-				$scriptURI,
-				$_POST["name"] ?? "",
-				$_POST["version"] ?? "",
-			)
-		) {
-			scrupDie(400, "Could not register script $scriptURI");
+		$uri = Scrup::getObjectURI();
+		if (!$scrup->registerScript($uri, $_POST["name"] ?? "", $_POST["version"] ?? "")) {
+			Scrup::respond(400, "Could not register script $uri");
 		}
 		break;
 
 	case "register-client":
-		$clientURI = getObjectURI();
-		debug("client $clientURI");
-		// debug(print_r($_POST));
-		if (
-			!registerClient(
-				$clientURI,
-				$_POST["linkkey"] ?? "",
-				$_POST["version"] ?? "",
-				$_POST["pin"] ?? "",
-			)
-		) {
-			scrupDie(400, "Could not register client $clientURI");
+		$uri = Scrup::getObjectURI();
+		if (!$scrup->registerClient(
+			$uri,
+			$_POST["linkkey"]  ?? "",
+			$_POST["version"]  ?? "",
+			$_POST["pin"]      ?? "",
+		)) {
+			Scrup::respond(400, "Could not register client $uri");
 		}
 		break;
 
-	case "get-version-": // defaults to script
+	case "get-version-":       // no type param — defaults to server version
 	case "get-version-script":
 	case "get-version-scrup":
-		$version = getVersion(
+		$version = $scrup->getVersion(
 			$_REQUEST["name"] ?? null,
 			$_REQUEST["type"] ?? null,
 		);
-		scrupDie(200, $version);
+		Scrup::respond(200, $version);
 		break;
 
 	default:
-		scrupDie(
-			400,
-			"Bad Request: unknown action/type combination $action/$type",
-		);
+		Scrup::respond(400, "Bad Request: unknown action/type combination $action/$type");
 }

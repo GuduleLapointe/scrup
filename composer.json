@@ -1,0 +1,16 @@
+{
+	"name": "gudulelapointe/scrup",
+	"description": "LSL scripts auto-update server component for OpenSimulator",
+	"type": "library",
+	"license": "AGPL-3.0",
+	"homepage": "https://github.com/GuduleLapointe/scrup",
+	"require": {
+		"php": ">=8.1",
+		"ext-sqlite3": "*"
+	},
+	"autoload": {
+		"psr-4": {
+			"Scrup\\": "app/"
+		}
+	}
+}
