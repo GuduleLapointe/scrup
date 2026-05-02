@@ -1,5 +1,10 @@
 # Scrup - LSL scripts auto-update
 
+![Version 1.2.0](https://badgen.net/badge/Version/1.2.0/FFaa00)
+![Stable 1.2.0](https://badgen.net/badge/1.2.0/Stable/00aa00)
+![Requires PHP 7.3](https://badgen.net/badge/PHP/8.2/7884bf)
+![License AGPLv3](https://badgen.net/badge/License/AGPLv3/552b55)
+
 An update ecosystem to allow OpenSimulator scripts to self-update. It should also work in Second Life with a small tweak (see below).
 
 ## Installation
@@ -27,7 +32,7 @@ This is a work in progress and more like a proof of concept. Updates are functio
 
 ## Second Life
 
-The only OSSL function used in scripts is osGetGridLoginURI(), in , which is useless in SL. So to make the script work in SL, replace the function by a fixed value "secondlife://" (detailed explanation in the scripts comments).
+The only OSSL function used in scripts is osGetGridLoginURI(), which would break in SecondLife. To make the script work in SL, replace the function by a hardcoded value "secondlife://" (detailed explanation in the scripts comments).
 
 ## Roadmap
 
